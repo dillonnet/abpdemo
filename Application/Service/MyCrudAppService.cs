@@ -67,7 +67,7 @@ public abstract class MyCrudAppService<TEntity, TGetOutputDto, TGetListOutputDto
         
         var entity =  MapToEntity(input);
         
-        await Repository.InsertAsync(entity, autoSave: true);
+        await Repository.InsertAsync(entity);
 
         return await MapToGetOutputDtoAsync(entity);
     }

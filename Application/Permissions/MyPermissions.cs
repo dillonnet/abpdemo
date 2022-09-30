@@ -20,7 +20,6 @@ public class MyPermissions
         public const string Delete = Default + ".Delete";
     }
     
-    
     public static class Roles
     {
         public const string Default = SystemGroupName + ".Roles";

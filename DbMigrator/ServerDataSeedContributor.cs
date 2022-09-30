@@ -49,6 +49,7 @@ public class ServerDataSeedContributor : IDataSeedContributor, ITransientDepende
     {
         var password = "123456";
         var adminRole = await DbContext.Set<Role>().FirstAsync(r => r.Name == StaticRoleNames.Admin);
+        
         for (int i = 0; i < 20; i++)
         {
             var userName = "admin" + i;

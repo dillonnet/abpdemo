@@ -1,4 +1,5 @@
-﻿using Application.Dto.System;
+﻿using Application.Dto;
+using Application.Dto.System;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Authorization.Permissions;
 
@@ -8,9 +9,9 @@ public class SystemService : ApplicationService
 {
     public IPermissionDefinitionManager PermissionDefinitionManager { get; set; }
 
-    public async Task<ICollection<PermissionOutput>> GetPermissions()
+    public async Task<ICollection<TreeOptionDto>> GetPermissions()
     {
         var permissions = PermissionDefinitionManager.GetGroups()[0].Permissions;
-        return ObjectMapper.Map<IReadOnlyCollection<PermissionDefinition>, ICollection<PermissionOutput>>(permissions);
+        return ObjectMapper.Map<IReadOnlyCollection<PermissionDefinition>, ICollection<TreeOptionDto>>(permissions);
     }
 }

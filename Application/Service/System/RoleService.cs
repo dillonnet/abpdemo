@@ -1,103 +1,90 @@
 ﻿using Application.Conts;
 using Application.Dto.System.Role;
-using Application.Dto.System.User;
 using Application.Permissions;
 using Domain.Entity.System;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Volo.Abp;
-using Volo.Abp.Application.Dtos;
-using Volo.Abp.Domain.Entities;
+using Volo.Abp.Domain.Repositories;
 using Z.EntityFramework.Plus;
 
 namespace Application.Service.System;
 
-public class RoleService : BaseService
+public class RoleService : MyCrudAppService<Role, RoleDetailOutput, RoleListOutput, Guid, 
+    GetRoleListInput, CreateOrEditRoleInput, CreateOrEditRoleInput>
 {
-    [Authorize(MyPermissions.Roles.Default)]
-    public  async Task<PagedResultDto<RoleListOutput>> GetList(GetUserListInput input)
+    public IRepository<PermissionGrant> PermissionGrantRepository { get; set; }
+    public RoleService(IRepository<Role, Guid> repository) : base(repository)
     {
-        var query = DbContext.Set<Role>().WhereIf(!input.Filter.IsNullOrEmpty(), u => u.Name.Contains(input.Filter)).OrderByDescending(u => u.Name);
-        var count = await  query.CountAsync();
-        var list = await  query.PageBy(input).ToListAsync();
-
-        return new PagedResultDto<RoleListOutput>(
-            count,
-            ObjectMapper.Map<List<Role>, List<RoleListOutput>>(list)
-        );
     }
     
-    [Authorize(MyPermissions.Roles.Create)]
-    public async Task Create(CreateOrEditRoleInput input)
+    protected override string GetListPolicyName => MyPermissions.Roles.Default;
+    protected override string CreatePolicyName => MyPermissions.Roles.Create;
+    protected override string UpdatePolicyName => MyPermissions.Roles.Update;
+    protected override string DeletePolicyName => MyPermissions.Roles.Delete;
+
+    protected override async Task<IQueryable<Role>> CreateFilteredQueryAsync(GetRoleListInput input)
     {
-        await CheckRoleNameExist(input.Name, input.Id);
-        var role = new Role
-        {
-            Name = input.Name,
-            Remark = input.Remark
-        };
-        DbContext.Set<Role>().Add(role);
-        foreach (var permission in input.Permissions)
-        {
-            await DbContext.Set<PermissionGrant>().AddAsync(new PermissionGrant()
-            {
-                ProviderKey = input.Name,
-                ProviderName = "R",
-                Name = permission,
-            });
-        }
+        var queryable = await Repository.GetQueryableAsync();
+        return queryable.WhereIf(!input.Filter.IsNullOrEmpty(), u => u.Name.Contains(input.Filter));
+    }
+    
+    protected override async Task CheckCreateValidateAsync(CreateOrEditRoleInput input)
+    {
+        await CheckNameExist(input.Name);
     }
 
-    public async Task<RoleDetailOutput> Get(Guid id)
+    protected override async Task CheckUpdateValidateAsync(Guid id, CreateOrEditRoleInput input)
     {
-        var role = await DbContext.Set<Role>().FindAsync(id);
-        if(role == null)
-            throw new EntityNotFoundException();
-
-        var roleOutput = ObjectMapper.Map<Role, RoleDetailOutput>(role);
-        roleOutput.Permissons = await DbContext.Set<PermissionGrant>().Where(pg =>
-                pg.ProviderName == SystemConsts.PERMISSION_PROVIDER_NAME && pg.ProviderKey == role.Name)
-            .Select(pg => pg.Name).ToArrayAsync();
-
-        return roleOutput;
+        await CheckNameExist(input.Name, id);
     }
 
-    [Authorize(MyPermissions.Roles.Update)]
-    public async Task Update(CreateOrEditRoleInput input)
+    public override async Task<RoleDetailOutput> CreateAsync(CreateOrEditRoleInput input)
     {
-        var role = await DbContext.Set<Role>().FindAsync(input.Id.Value);
-        if (role == null)
-            throw new EntityNotFoundException();
-
-        role.Name = input.Name;
-        role.Remark = input.Remark;
-
-        await DbContext.Set<PermissionGrant>().Where(p => p.ProviderName == SystemConsts.PERMISSION_PROVIDER_NAME && p.ProviderKey == input.Name)
-            .DeleteAsync();
+        var result = await base.CreateAsync(input);
         foreach (var permission in input.Permissions)
         {
-            await DbContext.Set<PermissionGrant>().AddAsync(new PermissionGrant()
+            await PermissionGrantRepository.InsertAsync(new PermissionGrant()
             {
                 ProviderKey = input.Name,
                 ProviderName = SystemConsts.PERMISSION_PROVIDER_NAME,
                 Name = permission,
             });
         }
+        return result;
     }
 
-    [Authorize(MyPermissions.Roles.Delete)]
-    public async Task Delete(Guid id)
+    public override async Task<RoleDetailOutput> GetAsync(Guid id)
     {
-        var role = await DbContext.Set<Role>().FindAsync(id);
-        if(role == null)
-            throw new EntityNotFoundException();
-
-         DbContext.Set<Role>().Remove(role);
+        var result = await base.GetAsync(id);
+        var queryable = await PermissionGrantRepository.GetQueryableAsync();
+        result.Permissons = await queryable.Where(pg =>
+                pg.ProviderName == SystemConsts.PERMISSION_PROVIDER_NAME && pg.ProviderKey == result.Name)
+            .Select(pg => pg.Name).ToArrayAsync();
+        return result;
     }
 
-    private async Task CheckRoleNameExist(string name, Guid? ignoreId)
+    public override async Task<RoleDetailOutput> UpdateAsync(Guid id, CreateOrEditRoleInput input)
     {
-        var query = DbContext.Set<Role>().Where(r => r.Name == name).WhereIf(ignoreId.HasValue, r => r.Id != ignoreId.Value);
+        var result = await base.UpdateAsync(id, input);
+        var queryable = await PermissionGrantRepository.GetQueryableAsync();
+        await queryable.Where(p => p.ProviderName == SystemConsts.PERMISSION_PROVIDER_NAME && p.ProviderKey == input.Name)
+            .DeleteAsync();
+        foreach (var permission in input.Permissions)
+        {
+            await PermissionGrantRepository.InsertAsync(new PermissionGrant()
+            {
+                ProviderKey = input.Name,
+                ProviderName = SystemConsts.PERMISSION_PROVIDER_NAME,
+                Name = permission,
+            });
+        }
+        return result;
+    }
+
+    private async Task CheckNameExist(string name, Guid? ignoreId = null)
+    {
+        var queryable = await Repository.GetQueryableAsync();
+        var query = queryable.Where(r => r.Name == name).WhereIf(ignoreId.HasValue, r => r.Id != ignoreId.Value);
         if (await query.AnyAsync())
             throw new UserFriendlyException("角色名已存在");
     }

@@ -32,9 +32,8 @@ public class DepartmentService : MyCrudAppService<Department, DepartmentDto, Dep
     protected override async Task<IQueryable<Department>> CreateFilteredQueryAsync(GetDepartmentListInput input)
     {
         var queryable = await Repository.GetQueryableAsync();
-        queryable = queryable.WhereIf(!input.Filter.IsNullOrEmpty(), u => u.Name.Contains(input.Filter))
+        return queryable.WhereIf(!input.Filter.IsNullOrEmpty(), u => u.Name.Contains(input.Filter))
             .WhereIf(input.Status.HasValue, u => u.Status == input.Status);
-        return queryable;
     }
 
     protected override async Task CheckCreateValidateAsync(DepartmentDto input)

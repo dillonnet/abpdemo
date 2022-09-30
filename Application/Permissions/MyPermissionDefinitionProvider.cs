@@ -12,7 +12,7 @@ public class MyPermissionDefinitionProvider : PermissionDefinitionProvider
         var systemPermission = myPermissionGroup.AddPermission(MyPermissions.SystemGroupName, L("系统管理"));
 
         
-        var departmentPermission = systemPermission.AddChild(MyPermissions.Departments.Default, L("用户管理"));
+        var departmentPermission = systemPermission.AddChild(MyPermissions.Departments.Default, L("部门管理"));
         departmentPermission.AddChild(MyPermissions.Departments.Create, L("新增"));
         departmentPermission.AddChild(MyPermissions.Departments.Update, L("修改"));
         departmentPermission.AddChild(MyPermissions.Departments.Delete, L("删除"));

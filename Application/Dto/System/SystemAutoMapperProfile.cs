@@ -18,7 +18,9 @@ public class SystemAutoMapperProfile: Profile, ITransientDependency
         CreateMap<Domain.Entity.System.Role, RoleListOutput>();
         CreateMap<Domain.Entity.System.Role, RoleDetailOutput>()
             .ForMember(r => r.Permissons, i => i.Ignore());
-        
+        CreateMap<CreateOrEditRoleInput, Domain.Entity.System.Role>();
+
+
         CreateMap<Domain.Entity.System.Department, DepartmentDto>();
         CreateMap<DepartmentDto, Domain.Entity.System.Department>()
             .ForMember(r => r.CreationTime, i => i.Ignore())
@@ -26,7 +28,8 @@ public class SystemAutoMapperProfile: Profile, ITransientDependency
         CreateMap<Domain.Entity.System.Department, TreeOptionDto>()
             .ForMember(r => r.Value, i => i.MapFrom(d => d.Id.ToString())) ;
         
-        CreateMap<PermissionDefinition, PermissionOutput>()
-            .ForMember(pd => pd.DisplayName, i => i.MapFrom(o => o.DisplayName.Localize(stringLocalizerFactory).Value));
+        CreateMap<PermissionDefinition, TreeOptionDto>()
+            .ForMember(pd => pd.Value, i => i.MapFrom(o => o.Name))
+            .ForMember(pd => pd.Name, i => i.MapFrom(o => o.DisplayName.Localize(stringLocalizerFactory).Value));
     }
 }
