@@ -1,12 +1,12 @@
 ﻿using Application.Permissions;
 using Domain.Consts;
 using Domain.Data;
-using Volo.Abp.Authorization.Permissions;
+using Domain.Entity.System;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Volo.Abp.Data;
 using Volo.Abp.DependencyInjection;
 using Volo.Abp.Guids;
-using Volo.Abp.Identity;
-using Volo.Abp.PermissionManagement;
 
 namespace DbMigrator;
 
@@ -14,11 +14,9 @@ public class ServerDataSeedContributor : IDataSeedContributor, ITransientDepende
 {
     public MyDbContext DbContext { get; set; }
     public IGuidGenerator GuidGenerator { get; set; }
-    public IdentityUserManager UserManager { get; set; }
-    public IdentityRoleManager RoleManager { get; set; }
-    public IPermissionManager PermissionManager { get; set; }
+    public IPasswordHasher<User> PasswordHasher { get; set; }
 
-    private const string systemMangerRoleStr = "systemManger";
+    private const string SystemMangerRoleStr = "系统设置管理员";
     
     public async Task SeedAsync(DataSeedContext context)
     {
@@ -28,47 +26,62 @@ public class ServerDataSeedContributor : IDataSeedContributor, ITransientDepende
 
     private async Task SeedRolesAndPermissions()
     {
-        var adminRole = new IdentityRole(GuidGenerator.Create(), StaticRoleNames.Admin)
+        var adminRole = new Role
         {
+            Name = StaticRoleNames.Admin,
+            Remark = "系统内置管理员",
             IsStatic = true
         };
-        await RoleManager.CreateAsync(adminRole);
-        
-        var systemMangerRole = new IdentityRole(GuidGenerator.Create(), systemMangerRoleStr);
-        await RoleManager.CreateAsync(systemMangerRole);
+        DbContext.Set<Role>().Add(adminRole);
+       
+        var systemMangerRole = new Role
+        {
+            Name = SystemMangerRoleStr
+        };
+        DbContext.Set<Role>().Add(systemMangerRole);
 
-        await  PermissionManager.SetAsync(MyPermissions.Users.Default, RolePermissionValueProvider.ProviderName, systemMangerRoleStr, true);
-        await PermissionManager.SetAsync(MyPermissions.Users.Create, RolePermissionValueProvider.ProviderName, systemMangerRoleStr, true);
-        await PermissionManager.SetAsync(MyPermissions.Users.Update, RolePermissionValueProvider.ProviderName, systemMangerRoleStr, true);
-        await PermissionManager.SetAsync(MyPermissions.Users.Default, RolePermissionValueProvider.ProviderName, systemMangerRoleStr, true);
-        await PermissionManager.SetAsync(MyPermissions.Users.Delete, RolePermissionValueProvider.ProviderName, systemMangerRoleStr, true);
+      
+
+        await DbContext.SaveChangesAsync();
     }
 
     private async  Task SeedUsers()
     {
+        var password = "123456";
+        var adminRole = await DbContext.Set<Role>().FirstAsync(r => r.Name == StaticRoleNames.Admin);
         for (int i = 0; i < 20; i++)
         {
             var userName = "admin" + i;
-            var newUser = new IdentityUser(GuidGenerator.Create(), userName, userName + "@fake.com")
+            var newUser = new User(GuidGenerator.Create(), userName, userName)
             {
                 Name = userName,
             };
-            var password = "123456";
-            await UserManager.CreateAsync(newUser, password, validatePassword: false);
-            await UserManager.AddToRoleAsync(newUser, StaticRoleNames.Admin);
-        }
 
+            newUser.PasswordHash = PasswordHasher.HashPassword(newUser, password);
+            newUser.Roles = new List<UserRole>()
+            {
+                new (newUser.Id, adminRole.Id)
+            };
+            DbContext.Set<User>().Add(newUser);
+        }
+        
+        var systemManagerRole = await DbContext.Set<Role>().FirstAsync(r => r.Name == SystemMangerRoleStr);
         for (int i = 0; i < 1; i++)
         {
             var userName = "system" + i;
-            var newUser = new IdentityUser(GuidGenerator.Create(), userName, userName + "@fake.com")
+            var newUser = new User(GuidGenerator.Create(), userName, userName)
             {
                 Name = userName,
             };
-            var password = "123456";
-            await UserManager.CreateAsync(newUser, password, validatePassword: false);
-            await UserManager.AddToRoleAsync(newUser, systemMangerRoleStr);
+            
+            newUser.PasswordHash = PasswordHasher.HashPassword(newUser, password);
+            newUser.Roles = new List<UserRole>()
+            {
+                new (newUser.Id, systemManagerRole.Id)
+            };
+            DbContext.Set<User>().Add(newUser);
           
         }
+        await DbContext.SaveChangesAsync();
     }
 }

@@ -1,7 +1,10 @@
-﻿using System.Text;
+﻿using System.Net;
+using System.Text;
+using System.Text.Json.Serialization;
 using Application;
 using Application.Config;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Volo.Abp;
@@ -51,6 +54,10 @@ public class WebModule: AbpModule
         Configure<AbpAntiForgeryOptions>(options =>
         {
             options.AutoValidate = false;
+        });
+        Configure<JsonOptions>(options =>
+        {
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         });
     }
 
@@ -113,13 +120,13 @@ public class WebModule: AbpModule
         app.UseAuthentication();
         app.UseJwtTokenMiddleware();
 
-        app.UseUnitOfWork();
         app.UseAuthorization();
         if (env.IsDevelopment())
         {
             app.UseSwagger();
             app.UseSwaggerUI();
         }
+        app.UseUnitOfWork();
         app.UseConfiguredEndpoints();
     }
 }

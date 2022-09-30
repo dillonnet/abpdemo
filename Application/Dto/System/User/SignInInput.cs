@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Application.Dto.User;
+namespace Application.Dto.System.User;
 
 public class SignInInput
 {

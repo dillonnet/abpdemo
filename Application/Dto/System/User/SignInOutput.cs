@@ -1,4 +1,4 @@
-﻿namespace Application.Dto.Account;
+﻿namespace Application.Dto.System.User;
 
 public class SignInOutput
 {

@@ -2,67 +2,68 @@
 using System.Security.Claims;
 using System.Text;
 using Application.Config;
-using Application.Dto.Account;
-using Application.Dto.User;
+using Application.Dto.System.User;
 using Application.Permissions;
+using Domain.Entity.System;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Volo.Abp;
 using Volo.Abp.Application.Dtos;
-using Volo.Abp.Identity;
 using Volo.Abp.Security.Claims;
 
-namespace Application.Service;
+namespace Application.Service.System;
 
+[Authorize]
 public class UserService : BaseService
 {
     protected JwtConfig JwtConfig { get; }
-    public IdentityUserManager IdentityUserManager { get; set; }
+    public IPasswordHasher<User> PasswordHasher { get; set; }
     public UserService(IOptions<JwtConfig> jwtconfigOptions)
     {
         JwtConfig = jwtconfigOptions.Value;
     }
 
     [Authorize(MyPermissions.Users.Default)]
-    public  async Task<PagedResultDto<UserListDto>> GetListAsync(GetUserListInput input)
+    public  async Task<PagedResultDto<UserListOutput>> GetList(GetUserListInput input)
     {
-        var query = DbContext.Users.WhereIf(!input.Filter.IsNullOrEmpty(), u => u.UserName.Contains(input.Filter)).OrderByDescending(u => u.CreationTime);
+        var query = DbContext.Set<User>().WhereIf(!input.Filter.IsNullOrEmpty(), u => u.UserName.Contains(input.Filter)).OrderByDescending(u => u.CreationTime);
         var count = await  query.CountAsync();
         var list = await  query.PageBy(input).ToListAsync();
 
-        return new PagedResultDto<UserListDto>(
+        return new PagedResultDto<UserListOutput>(
             count,
-            ObjectMapper.Map<List<IdentityUser>, List<UserListDto>>(list)
+            ObjectMapper.Map<List<User>, List<UserListOutput>>(list)
         );
     }
     
-    [HttpPost]
+    [AllowAnonymous]
     public async Task<SignInOutput> SignIn(SignInInput input)
     {
-        var user = await DbContext.Users.Include(u => u.Roles).Where(u => u.UserName == input.UserName).FirstOrDefaultAsync();
+        var user = await DbContext.Set<User>()
+            .Include(u => u.Roles).ThenInclude(r => r.Role).Where(u => u.UserName == input.UserName).FirstOrDefaultAsync();
         if (user == null)
         {
             throw new UserFriendlyException("用户名不存在");
         }
 
-        if (!await IdentityUserManager.CheckPasswordAsync(user, input.password))
+        if (PasswordHasher.VerifyHashedPassword(user, user.PasswordHash, input.password) != PasswordVerificationResult.Success)
         {
             throw new UserFriendlyException("密码错误");
         }
 
-        var roles = await IdentityUserManager.GetRolesAsync(user);
+        var roles = user.Roles.Select(r => r.Role).ToList();
         var claims = new List<Claim>()
         {
             new (JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new (JwtRegisteredClaimNames.Email, user.Email),
             new (JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
         };
         foreach (var role in roles)
         {
-            claims.Add(new Claim(AbpClaimTypes.Role, role));
+            claims.Add(new Claim(AbpClaimTypes.Role, role.Name));
         }
         var tokenDescriptor = new SecurityTokenDescriptor
         {
@@ -81,5 +82,13 @@ public class UserService : BaseService
         {
             Token = stringToken
         };
+    }
+    
+    public async Task<UserInfoOutput> GetUserInfo()
+    {
+        var user = await DbContext.Set<User>()
+            .Include(u => u.Roles).ThenInclude(r => r.Role).FirstAsync(u => u.Id == CurrentUser.Id.Value);
+
+        return ObjectMapper.Map<User, UserInfoOutput>(user);
     }
 }

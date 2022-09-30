@@ -1,6 +1,6 @@
-﻿namespace Application.Dto.User;
+﻿namespace Application.Dto.System.User;
 
-public class UserListDto
+public class UserListOutput
 {
     public string UserName { get; set; }
     
