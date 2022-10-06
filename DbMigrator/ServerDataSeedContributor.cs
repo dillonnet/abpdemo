@@ -6,13 +6,17 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Volo.Abp.Data;
 using Volo.Abp.DependencyInjection;
+using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Guids;
+using Volo.Abp.Uow;
 
 namespace DbMigrator;
 
 public class ServerDataSeedContributor : IDataSeedContributor, ITransientDependency
 {
-    public MyDbContext DbContext { get; set; }
+    public IRepository<Role> RoleRepository { get; set; }
+    public IRepository<User> UserRepository { get; set; }
+    public IRepository<Department> DepartmentRepository { get; set; }
     public IGuidGenerator GuidGenerator { get; set; }
     public IPasswordHasher<User> PasswordHasher { get; set; }
 
@@ -20,8 +24,18 @@ public class ServerDataSeedContributor : IDataSeedContributor, ITransientDepende
     
     public async Task SeedAsync(DataSeedContext context)
     {
+        await SeedDepartments();
         await SeedRolesAndPermissions();
         await SeedUsers();
+    }
+    
+    private async Task SeedDepartments()
+    {
+        var department = new Department()
+        {
+            Name = "总部",
+        };
+       await DepartmentRepository.InsertAsync(department, true);
     }
 
     private async Task SeedRolesAndPermissions()
@@ -32,23 +46,19 @@ public class ServerDataSeedContributor : IDataSeedContributor, ITransientDepende
             Remark = "系统内置管理员",
             IsStatic = true
         };
-        DbContext.Set<Role>().Add(adminRole);
+        await RoleRepository.InsertAsync(adminRole, true);
        
         var systemMangerRole = new Role
         {
             Name = SystemMangerRoleStr
         };
-        DbContext.Set<Role>().Add(systemMangerRole);
-
-      
-
-        await DbContext.SaveChangesAsync();
+        await RoleRepository.InsertAsync(systemMangerRole, true);
     }
-
+    
     private async  Task SeedUsers()
     {
         var password = "123456";
-        var adminRole = await DbContext.Set<Role>().FirstAsync(r => r.Name == StaticRoleNames.Admin);
+        var adminRole = await RoleRepository.FirstAsync(r => r.Name == StaticRoleNames.Admin);
         
         for (int i = 0; i < 20; i++)
         {
@@ -63,10 +73,10 @@ public class ServerDataSeedContributor : IDataSeedContributor, ITransientDepende
             {
                 new (newUser.Id, adminRole.Id)
             };
-            DbContext.Set<User>().Add(newUser);
+            await UserRepository.InsertAsync(newUser, true);
         }
         
-        var systemManagerRole = await DbContext.Set<Role>().FirstAsync(r => r.Name == SystemMangerRoleStr);
+        var systemManagerRole = await RoleRepository.FirstAsync(r => r.Name == SystemMangerRoleStr);
         for (int i = 0; i < 1; i++)
         {
             var userName = "system" + i;
@@ -80,9 +90,7 @@ public class ServerDataSeedContributor : IDataSeedContributor, ITransientDepende
             {
                 new (newUser.Id, systemManagerRole.Id)
             };
-            DbContext.Set<User>().Add(newUser);
-          
+           await UserRepository.InsertAsync(newUser, true);
         }
-        await DbContext.SaveChangesAsync();
     }
 }

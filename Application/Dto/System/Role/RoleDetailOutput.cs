@@ -2,5 +2,5 @@
 
 public class RoleDetailOutput: RoleListOutput
 {
-    public string[] Permissons { get; set; }
+    public string[] Permissions { get; set; }
 }

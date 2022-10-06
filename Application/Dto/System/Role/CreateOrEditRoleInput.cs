@@ -2,7 +2,7 @@
 
 namespace Application.Dto.System.Role;
 
-public class CreateOrEditRoleInput: EntityDto<Guid?>
+public class CreateOrEditRoleInput
 {
     public string Name { get; set; }
     

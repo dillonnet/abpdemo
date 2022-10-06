@@ -1,10 +1,13 @@
-﻿using Volo.Abp.Application.Dtos;
+﻿using Volo.Abp.Caching;
 
 namespace Application.Dto.System.User;
 
-public class UserListOutput: EntityDto<Guid>
+[CacheName("USER:INFO")]
+public class UserInfoCacheItem
 {
     public string UserName { get; set; }
+    
+    public string[] Permissions { get; set; }
     
     public string Name { get; set; }
     

@@ -2,48 +2,52 @@
 using System.Security.Claims;
 using System.Text;
 using Application.Config;
+using Application.Conts;
 using Application.Dto.System.User;
 using Application.Permissions;
+using Domain.Consts;
 using Domain.Entity.System;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Volo.Abp;
-using Volo.Abp.Application.Dtos;
+using Volo.Abp.Authorization.Permissions;
+using Volo.Abp.Caching;
+using Volo.Abp.Domain.Repositories;
 using Volo.Abp.Security.Claims;
 
 namespace Application.Service.System;
 
 [Authorize]
-public class UserService : BaseService
+public class UserService  : MyCrudAppService<User, UserDetailOutput, UserListOutput, Guid, 
+    GetUserListInput, CreateOrEditUserInput, CreateOrEditUserInput>
 {
     protected JwtConfig JwtConfig { get; }
+    public IPermissionDefinitionManager PermissionDefinitionManager { get; set; }
+    public IRepository<PermissionGrant> PermissionGrantRepository { get; set; }
     public IPasswordHasher<User> PasswordHasher { get; set; }
-    public UserService(IOptions<JwtConfig> jwtconfigOptions)
+    public IDistributedCache<UserInfoCacheItem, Guid> UserInfoCache{ get; set; }
+    public UserService(
+        IRepository<User, Guid> repository,
+        IOptions<JwtConfig> jwtconfigOptions): base(repository)
     {
         JwtConfig = jwtconfigOptions.Value;
     }
-
-    [Authorize(MyPermissions.Users.Default)]
-    public  async Task<PagedResultDto<UserListOutput>> GetList(GetUserListInput input)
-    {
-        var query = DbContext.Set<User>().WhereIf(!input.Filter.IsNullOrEmpty(), u => u.UserName.Contains(input.Filter)).OrderByDescending(u => u.CreationTime);
-        var count = await  query.CountAsync();
-        var list = await  query.PageBy(input).ToListAsync();
-
-        return new PagedResultDto<UserListOutput>(
-            count,
-            ObjectMapper.Map<List<User>, List<UserListOutput>>(list)
-        );
-    }
     
+    protected override string GetListPolicyName => MyPermissions.Users.Default;
+    protected override string CreatePolicyName => MyPermissions.Users.Create;
+    protected override string UpdatePolicyName => MyPermissions.Users.Update;
+    protected override string DeletePolicyName => MyPermissions.Users.Delete;
+
     [AllowAnonymous]
     public async Task<SignInOutput> SignIn(SignInInput input)
     {
-        var user = await DbContext.Set<User>()
+        var queryable = await Repository.GetQueryableAsync();
+        var user = await queryable
             .Include(u => u.Roles).ThenInclude(r => r.Role).Where(u => u.UserName == input.UserName).FirstOrDefaultAsync();
         if (user == null)
         {
@@ -86,9 +90,67 @@ public class UserService : BaseService
     
     public async Task<UserInfoOutput> GetUserInfo()
     {
-        var user = await DbContext.Set<User>()
-            .Include(u => u.Roles).ThenInclude(r => r.Role).FirstAsync(u => u.Id == CurrentUser.Id.Value);
+        var cacheItem = await UserInfoCache.GetOrAddAsync(CurrentUser.Id.Value, async () =>
+        {
+            var queryable = await Repository.GetQueryableAsync();
+            var user = await queryable
+                .Include(u => u.Roles).ThenInclude(r => r.Role).FirstAsync(u => u.Id == CurrentUser.Id.Value);
 
-        return ObjectMapper.Map<User, UserInfoOutput>(user);
+            string[] permissions;
+            var roleIds = user.Roles.Select(r => r.RoleId).ToArray();
+            if (user.Roles.Any(r => r.Role.IsStatic && r.Role.Name == StaticRoleNames.Admin))
+            {
+                permissions = PermissionDefinitionManager.GetGroups()[0].GetPermissionsWithChildren().Select(p => p.Name).ToArray();
+            }
+            else
+            {
+                var permissionGrantQueryable = await PermissionGrantRepository.GetQueryableAsync();
+                var roleStrs = roleIds.Select(r => r.ToString()).ToArray();
+                 permissions = await permissionGrantQueryable.Where(pg => roleStrs.Contains(pg.ProviderKey)
+                                                                             && pg.ProviderName ==
+                                                                             SystemConsts.PERMISSION_PROVIDER_NAME)
+                    .Select(pg => pg.Name).ToArrayAsync();
+            }
+
+            return new UserInfoCacheItem()
+            {
+                UserName = user.UserName,
+                Permissions = permissions,
+                Name = user.Name,
+                RoleIds = roleIds,
+            };
+        }, () => new DistributedCacheEntryOptions { SlidingExpiration = TimeSpan.FromDays(1) });
+
+        return ObjectMapper.Map<UserInfoCacheItem, UserInfoOutput>(cacheItem);
+    }
+
+    protected override async Task<IQueryable<User>> CreateFilteredQueryAsync(GetUserListInput input)
+    {
+        var queryable = await Repository.GetQueryableAsync();
+        return queryable.Include(u => u.Roles).ThenInclude(r => r.Role).WhereIf(!input.Filter.IsNullOrEmpty(), u => u.Name.Contains(input.Filter));
+    }
+    
+    protected override async Task CheckCreateValidateAsync(CreateOrEditUserInput input)
+    {
+        await CheckUserNameExist(input.UserName);
+    }
+
+    protected override async Task CheckUpdateValidateAsync(Guid id, CreateOrEditUserInput input)
+    {
+        await CheckUserNameExist(input.UserName, id);
+    }
+    
+    protected override async Task<User> GetEntityByIdAsync(Guid id)
+    {
+        var queryable = await Repository.GetQueryableAsync();
+        return await queryable.Include(u => u.Roles).ThenInclude(r => r.Role).FirstOrDefaultAsync(u => u.Id == id);
+    }
+    
+    private async Task CheckUserNameExist(string userName, Guid? ignoreId = null)
+    {
+        var queryable = await Repository.GetQueryableAsync();
+        var query = queryable.Where(r => r.UserName == userName).WhereIf(ignoreId.HasValue, r => r.Id != ignoreId.Value);
+        if (await query.AnyAsync())
+            throw new UserFriendlyException("用户名已存在");
     }
 }

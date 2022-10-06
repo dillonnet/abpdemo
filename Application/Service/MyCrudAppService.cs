@@ -141,7 +141,7 @@ public abstract class MyCrudAppService<TEntity, TGetOutputDto, TGetListOutputDto
 
     #endregion
     
-    protected async Task<TEntity> GetEntityByIdAsync(TKey id)
+    protected async virtual Task<TEntity> GetEntityByIdAsync(TKey id)
     {
         return await Repository.GetAsync(id);
     }

@@ -12,7 +12,8 @@ using Volo.Abp.Uow;
 
 namespace Application;
 
-[DependsOn(typeof(DomainModule), typeof(AbpDddApplicationModule), typeof(AbpAutoMapperModule))]
+[DependsOn(typeof(DomainModule), 
+    typeof(AbpDddApplicationModule), typeof(AbpAutoMapperModule))]
 public class ApplicationModule : AbpModule
 {
     public override void ConfigureServices(ServiceConfigurationContext context)

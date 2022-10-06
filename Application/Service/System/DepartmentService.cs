@@ -21,7 +21,6 @@ public class DepartmentService : MyCrudAppService<Department, DepartmentDto, Dep
     protected override string UpdatePolicyName => MyPermissions.Departments.Update;
     protected override string DeletePolicyName => MyPermissions.Departments.Delete;
 
-
     public async  Task<List<TreeOptionDto>> GetOptions()
     {
         var queryable = await Repository.GetQueryableAsync();
