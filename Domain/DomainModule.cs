@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp.Data;
 using Volo.Abp.EntityFrameworkCore;
 using Volo.Abp.EntityFrameworkCore.DependencyInjection;
+using Volo.Abp.Guids;
 using Volo.Abp.Modularity;
 using Volo.Abp.MultiTenancy;
 
@@ -22,13 +23,14 @@ public class DomainModule: AbpModule
 
     public override void ConfigureServices(ServiceConfigurationContext context)
     {
-        context.Services.AddAbpDbContext<MyDbContext>(options =>
+        Action<IAbpDbContextRegistrationOptionsBuilder> dbContextOptionBuild = options =>
         {
             options.AddDefaultRepositories(includeAllEntities: true);
-            new MyEfCoreRepositoryRegistrar(new AbpDbContextRegistrationOptions(typeof(MyDbContext), context.Services)
-            {
-            }).AddRepositories();
-        });
+        };
+        context.Services.AddAbpDbContext<MyDbContext>(dbContextOptionBuild);
+        var dbContextRegistrationOptions = new AbpDbContextRegistrationOptions(typeof(MyDbContext), context.Services);
+        dbContextOptionBuild.Invoke(dbContextRegistrationOptions);
+        new MyEfCoreRepositoryRegistrar(dbContextRegistrationOptions).AddRepositories();
 
         Configure<AbpDbContextOptions>(options =>
         {
@@ -38,6 +40,11 @@ public class DomainModule: AbpModule
         Configure<AbpDataFilterOptions>(options =>
         {
             options.DefaultStates[typeof(IMultiTenant)] = new DataFilterState(isEnabled: false);
+        });
+        
+        Configure<AbpSequentialGuidGeneratorOptions>(options =>
+        {
+            options.DefaultSequentialGuidType = SequentialGuidType.SequentialAsString ;
         });
     }
 }
