@@ -1,5 +1,4 @@
-﻿using System.Net;
-using System.Text;
+﻿using System.Text;
 using System.Text.Json.Serialization;
 using Application;
 using Application.Config;
@@ -11,11 +10,18 @@ using Volo.Abp;
 using Volo.Abp.AspNetCore.Mvc;
 using Volo.Abp.AspNetCore.Mvc.AntiForgery;
 using Volo.Abp.Autofac;
+using Volo.Abp.Localization;
 using Volo.Abp.Modularity;
+using Volo.Abp.Swashbuckle;
+using Volo.Abp.VirtualFileSystem;
 
 namespace Web;
 
-[DependsOn(typeof(AbpAspNetCoreMvcModule), typeof(ApplicationModule), typeof(AbpAutofacModule))]
+[DependsOn(
+    typeof(AbpAspNetCoreMvcModule), 
+    typeof(ApplicationModule), 
+    typeof(AbpAutofacModule), 
+    typeof(AbpSwashbuckleModule))]
 public class WebModule: AbpModule
 {
     public override void ConfigureServices(ServiceConfigurationContext context)
@@ -59,11 +65,28 @@ public class WebModule: AbpModule
         {
             options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
         });
+        ConfigureVirtualFileSystem(context);
     }
 
     private void ConfigSystem(IConfiguration configuration)
     {
         Configure<JwtConfig>(configuration.GetSection("Jwt"));
+    }
+    
+    private void ConfigureVirtualFileSystem(ServiceConfigurationContext context)
+    {
+        var hostingEnvironment = context.Services.GetHostingEnvironment();
+
+        if (hostingEnvironment.IsDevelopment())
+        {
+            Configure<AbpVirtualFileSystemOptions>(options =>
+            {
+                options.FileSets.ReplaceEmbeddedByPhysical<ApplicationModule>(
+                    Path.Combine(hostingEnvironment.ContentRootPath,
+                        $"..{Path.DirectorySeparatorChar}Application"));
+             
+            });
+        }
     }
 
     /// <summary>

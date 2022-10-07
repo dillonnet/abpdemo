@@ -3,6 +3,7 @@ using Application.Dto;
 using Application.Dto.System.Role;
 using Application.Permissions;
 using Domain.Entity.System;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Volo.Abp;
 using Volo.Abp.Domain.Repositories;
@@ -10,6 +11,7 @@ using Z.EntityFramework.Plus;
 
 namespace Application.Service.System;
 
+[Authorize]
 public class RoleService : MyCrudAppService<Role, RoleDetailOutput, RoleListOutput, Guid, 
     GetRoleListInput, CreateOrEditRoleInput, CreateOrEditRoleInput>
 {

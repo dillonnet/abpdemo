@@ -24,7 +24,7 @@ namespace Application.Service.System;
 
 [Authorize]
 public class UserService  : MyCrudAppService<User, UserDetailOutput, UserListOutput, Guid, 
-    GetUserListInput, CreateOrEditUserInput, CreateOrEditUserInput>
+    GetUserListInput, CreateUserInput, EditUserInput>
 {
     protected JwtConfig JwtConfig { get; }
     public IPermissionDefinitionManager PermissionDefinitionManager { get; set; }
@@ -127,17 +127,19 @@ public class UserService  : MyCrudAppService<User, UserDetailOutput, UserListOut
     protected override async Task<IQueryable<User>> CreateFilteredQueryAsync(GetUserListInput input)
     {
         var queryable = await Repository.GetQueryableAsync();
-        return queryable.Include(u => u.Roles).ThenInclude(r => r.Role).WhereIf(!input.Filter.IsNullOrEmpty(), u => u.Name.Contains(input.Filter));
+        return queryable.Include(u => u.Department).Include(u => u.Roles).ThenInclude(r => r.Role).WhereIf(!input.Filter.IsNullOrEmpty(), u => u.Name.Contains(input.Filter));
     }
     
-    protected override async Task CheckCreateValidateAsync(CreateOrEditUserInput input)
+    protected override async Task CheckCreateValidateAsync(CreateUserInput input)
     {
         await CheckUserNameExist(input.UserName);
+        await CheckNameExist(input.Name);
     }
 
-    protected override async Task CheckUpdateValidateAsync(Guid id, CreateOrEditUserInput input)
+    protected override async Task CheckUpdateValidateAsync(Guid id, EditUserInput input)
     {
         await CheckUserNameExist(input.UserName, id);
+        await CheckNameExist(input.Name, id);
     }
     
     protected override async Task<User> GetEntityByIdAsync(Guid id)
@@ -152,5 +154,13 @@ public class UserService  : MyCrudAppService<User, UserDetailOutput, UserListOut
         var query = queryable.Where(r => r.UserName == userName).WhereIf(ignoreId.HasValue, r => r.Id != ignoreId.Value);
         if (await query.AnyAsync())
             throw new UserFriendlyException("用户名已存在");
+    }
+    
+    private async Task CheckNameExist(string name, Guid? ignoreId = null)
+    {
+        var queryable = await Repository.GetQueryableAsync();
+        var query = queryable.Where(r => r.Name == name).WhereIf(ignoreId.HasValue, r => r.Id != ignoreId.Value);
+        if (await query.AnyAsync())
+            throw new UserFriendlyException("姓名已存在");
     }
 }

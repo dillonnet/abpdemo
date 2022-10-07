@@ -1,0 +1,18 @@
+{
+  "culture": "zh-Hans",
+  "texts": {
+    "System": "系统管理",
+    "System.Users": "用户管理",
+    "System.Users.Create": "新增",
+    "System.Users.Update": "修改",
+    "System.Users.Delete": "删除",
+    "System.Departments": "部门管理",
+    "System.Departments.Create": "新增",
+    "System.Departments.Update": "修改",
+    "System.Departments.Delete": "删除",
+    "System.Roles": "角色管理",
+    "System.Roles.Create": "新增",
+    "System.Roles.Update": "修改",
+    "System.Roles.Delete": "删除"
+  }
+}

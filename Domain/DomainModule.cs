@@ -3,6 +3,7 @@ using Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp.Data;
 using Volo.Abp.EntityFrameworkCore;
+using Volo.Abp.EntityFrameworkCore.DependencyInjection;
 using Volo.Abp.Modularity;
 using Volo.Abp.MultiTenancy;
 
@@ -24,6 +25,9 @@ public class DomainModule: AbpModule
         context.Services.AddAbpDbContext<MyDbContext>(options =>
         {
             options.AddDefaultRepositories(includeAllEntities: true);
+            new MyEfCoreRepositoryRegistrar(new AbpDbContextRegistrationOptions(typeof(MyDbContext), context.Services)
+            {
+            }).AddRepositories();
         });
 
         Configure<AbpDbContextOptions>(options =>

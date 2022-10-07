@@ -32,7 +32,8 @@ public class MyPermissionValueProvider: PermissionValueProvider
         if(userInfo.Permissions.Contains(context.Permission.Name)){
             return PermissionGrantResult.Granted;
         }
-        return  PermissionGrantResult.Undefined;
+        
+        return  PermissionGrantResult.Prohibited;
     }
 
     public override Task<MultiplePermissionGrantResult> CheckAsync(PermissionValuesCheckContext context)

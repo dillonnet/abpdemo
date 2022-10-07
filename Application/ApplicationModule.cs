@@ -1,4 +1,5 @@
 ﻿using Application.Dto.System;
+using Application.Localization.Resources;
 using Application.Permissions;
 using Domain;
 using Domain.Entity.System;
@@ -7,8 +8,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp.Application;
 using Volo.Abp.Authorization.Permissions;
 using Volo.Abp.AutoMapper;
+using Volo.Abp.Localization;
 using Volo.Abp.Modularity;
 using Volo.Abp.Uow;
+using Volo.Abp.Validation.Localization;
+using Volo.Abp.VirtualFileSystem;
 
 namespace Application;
 
@@ -32,10 +36,24 @@ public class ApplicationModule : AbpModule
         {
             options.ValueProviders.Add<MyPermissionValueProvider>();
         });
-
-        Configure<AbpUnitOfWorkDefaultOptions>(options =>
+        
+        Configure<AbpVirtualFileSystemOptions>(options =>
         {
-            options.TransactionBehavior = UnitOfWorkTransactionBehavior.Enabled;
+            options.FileSets.AddEmbedded<ApplicationModule>();
+        });
+        
+        Configure<AbpLocalizationOptions>(options =>
+        {
+            options.Resources
+                .Add<ApplicationResource>("zh-Han")
+                .AddBaseTypes(typeof(AbpValidationResource))
+                .AddVirtualJson("/Localization/Resources/System");
+            
+            options.Resources
+                .Add<PermissionResource>("zh-Hans")
+                .AddVirtualJson("/Localization/Resources/Permission");
+            
+            options.DefaultResourceType = typeof(ApplicationResource);
         });
     }
 }

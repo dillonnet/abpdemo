@@ -9,27 +9,27 @@ public class MyPermissionDefinitionProvider : PermissionDefinitionProvider
     {
         var myPermissionGroup =  context.AddGroup("权限");
         
-        var systemPermission = myPermissionGroup.AddPermission(MyPermissions.SystemGroupName, L("系统管理"));
+        var systemPermission = myPermissionGroup.AddPermission(MyPermissions.SystemGroupName, L(MyPermissions.SystemGroupName));
 
         
-        var departmentPermission = systemPermission.AddChild(MyPermissions.Departments.Default, L("部门管理"));
-        departmentPermission.AddChild(MyPermissions.Departments.Create, L("新增"));
-        departmentPermission.AddChild(MyPermissions.Departments.Update, L("修改"));
-        departmentPermission.AddChild(MyPermissions.Departments.Delete, L("删除"));
+        var departmentPermission = systemPermission.AddChild(MyPermissions.Departments.Default, L(MyPermissions.Departments.Default));
+        departmentPermission.AddChild(MyPermissions.Departments.Create, L(MyPermissions.Departments.Create));
+        departmentPermission.AddChild(MyPermissions.Departments.Update, L(MyPermissions.Departments.Update));
+        departmentPermission.AddChild(MyPermissions.Departments.Delete, L(MyPermissions.Departments.Delete));
         
-        var usersPermission = systemPermission.AddChild(MyPermissions.Users.Default, L("用户管理"));
-        usersPermission.AddChild(MyPermissions.Users.Create, L("新增"));
-        usersPermission.AddChild(MyPermissions.Users.Update, L("修改"));
-        usersPermission.AddChild(MyPermissions.Users.Delete, L("删除"));
+        var usersPermission = systemPermission.AddChild(MyPermissions.Users.Default, L(MyPermissions.Users.Default));
+        usersPermission.AddChild(MyPermissions.Users.Create, L(MyPermissions.Users.Create));
+        usersPermission.AddChild(MyPermissions.Users.Update, L(MyPermissions.Users.Update));
+        usersPermission.AddChild(MyPermissions.Users.Delete, L(MyPermissions.Users.Delete));
         
-        var rolesPermission = systemPermission.AddChild(MyPermissions.Roles.Default, L("角色管理"));
-        rolesPermission.AddChild(MyPermissions.Roles.Create, L("新增"));
-        rolesPermission.AddChild(MyPermissions.Roles.Update, L("修改"));
-        rolesPermission.AddChild(MyPermissions.Roles.Delete, L("删除"));
+        var rolesPermission = systemPermission.AddChild(MyPermissions.Roles.Default, L(MyPermissions.Roles.Default));
+        rolesPermission.AddChild(MyPermissions.Roles.Create, L(MyPermissions.Roles.Create));
+        rolesPermission.AddChild(MyPermissions.Roles.Update, L(MyPermissions.Roles.Update));
+        rolesPermission.AddChild(MyPermissions.Roles.Delete, L(MyPermissions.Roles.Delete));
     }
     
     private static LocalizableString L(string name)
     {
-        return LocalizableString.Create<PermissonResource>(name);
+        return LocalizableString.Create<PermissionResource>(name);
     }
 }

@@ -3,7 +3,7 @@
 namespace Application.Permissions;
 
 [LocalizationResourceName("Permission")]
-public class PermissonResource
+public class PermissionResource
 {
     
 }
